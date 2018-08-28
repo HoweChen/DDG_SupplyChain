@@ -24,6 +24,7 @@ import (
 
 var logger = shim.NewLogger("DDGSC_cc0")
 
+// 企业
 type Enterprise struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
 	//the field tags are needed to keep case from bouncing around
@@ -33,44 +34,64 @@ type Enterprise struct {
 	Registered_Capital    string `json:"registeredCapital"`   // 注册资本
 	Date_of_Establishment string `json:"dateOfEstablishment"` // 成立日期
 	Business_Scope        string `json:"businessScope"`       // 营业范围
-	Basic_Bank_Name       string `json:"basicBankName"`       // 基本开户银行名称
-	Basic_Bank_Account    string `json:"basicBankAccount"`    // 基本开户银行账号
+	Basic_FI_Name         string `json:"basicFIName"`         // 基本开户银行名称
+	Basic_FI_Account      string `json:"basicFIAccount"`      // 基本开户银行账号
 }
 
-// 金融机构
-type FinancialInstitution struct {
+// 金融机构 Financial Institution
+type FI struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	Name  string `json:"name"` //the field tags are needed to keep case from bouncing around
-	Color string `json:"color"`
-	Size  int    `json:"size"`
-	Owner string `json:"owner"`
+	ID                  string `json:"id"`                 // 金融机构ID
+	Name                string `json:"name"`               // 金融机构名称
+	Address             string `json:"address"`            // 金融机构地址
+	Project_Involvement string `json:"projectInvolvement"` // 参与的项目
 }
 
-//项目
+// 项目
 type Project struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	Name  string `json:"name"` //the field tags are needed to keep case from bouncing around
-	Color string `json:"color"`
-	Size  int    `json:"size"`
-	Owner string `json:"owner"`
+	ID           string            `json:"id"`          // 项目ID
+	Name         string            `json:"name"`        // 项目名称
+	Description  string            `json:"description"` // 项目简介
+	Core_Firm    []Enterprise      `json:"coreFirm"`    // 核心企业列表
+	Updown_Firm  []Enterprise      `json:"updownFirm"`  // 上下游企业列表
+	Progress     map[string]string `json:"progress"`    // 项目进展 (时间+项目进展描述)
+	Bid_Info     Bid               `json:"bidInfo"`     // 招标信息
+	Winner_FI    FI                `json:"winnerFI"`    // 中标金融机构
+	Credit_Limit float64           `json:"creditLimit"` // 授信额度
+	Used_Limit   float64           `json:"usedLimit"`   // 已用额度
+	Capital_Flow map[string]string `json:"capitalFlow"` // 资金流信息
+	Cargo_Flow   map[string]string `json:"cargoFlow"`   // 货物流信息
 }
 
 // 尽职调查报告 Due	Diligence Report
 type DDR struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	Name  string `json:"name"` //the field tags are needed to keep case from bouncing around
-	Color string `json:"color"`
-	Size  int    `json:"size"`
-	Owner string `json:"owner"`
+	Balance_Sheet Balance_Sheet `json:"balanceSheet"` // 资产负债表
+	Description   string        `json:"description"`  // 其他描述
+}
+
+// 资产负债表
+type Balance_Sheet struct {
+	LRFS               string   `json:"lrfs"`              // 法人代表家族史 legal representative family history
+	Actual_Controllers []string `json:"actualControllers"` // 实际控制人列表
 }
 
 // 招标信息
 type Bid struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	Name  string `json:"name"` //the field tags are needed to keep case from bouncing around
-	Color string `json:"color"`
-	Size  int    `json:"size"`
-	Owner string `json:"owner"`
+	Start_Date   string       `json:"startDate"`   // 发起时间
+	End_Date     string       `json:"end_date"`    // 结束时间
+	Project      Project      `json:"project"`     // 所属项目
+	Involved_FIs []FI         `json:"involvedFIs"` // 参与的金融机构列表
+	Offers       map[FI]Offer `json:"offers"`      // 金融机构报价
+	Winner_FI    FI           `json:"winnerFI"`    // 中标银行
+}
+
+// 金融机构报价
+type Offer struct {
+	Loan_Amount   int64   `json:"loanAmount"`   // 放款金额
+	Interest_Rate float64 `json:"interestRate"` // 利率
 }
 
 // DDGSCChainCode example simple Chaincode implementation
