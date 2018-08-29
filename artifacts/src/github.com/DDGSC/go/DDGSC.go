@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
@@ -41,10 +42,10 @@ type Enterprise struct {
 // 金融机构 Financial Institution
 type FI struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	ID                  string `json:"id"`                 // 金融机构ID
-	Name                string `json:"name"`               // 金融机构名称
-	Address             string `json:"address"`            // 金融机构地址
-	Project_Involvement string `json:"projectInvolvement"` // 参与的项目
+	ID                  string   `json:"id"`                 // 金融机构ID
+	Name                string   `json:"name"`               // 金融机构名称
+	Address             string   `json:"address"`            // 金融机构地址
+	Project_Involvement []string `json:"projectInvolvement"` // 参与的项目
 }
 
 // 项目
@@ -53,6 +54,7 @@ type Project struct {
 	ID           string            `json:"id"`          // 项目ID
 	Name         string            `json:"name"`        // 项目名称
 	Description  string            `json:"description"` // 项目简介
+	DDR          string            `json:"ddr"`         // 尽职调查报告列表ID
 	Core_Firm    []Enterprise      `json:"coreFirm"`    // 核心企业列表
 	Updown_Firm  []Enterprise      `json:"updownFirm"`  // 上下游企业列表
 	Progress     map[string]string `json:"progress"`    // 项目进展 (时间+项目进展描述)
@@ -60,19 +62,21 @@ type Project struct {
 	Winner_FI    FI                `json:"winnerFI"`    // 中标金融机构
 	Credit_Limit float64           `json:"creditLimit"` // 授信额度
 	Used_Limit   float64           `json:"usedLimit"`   // 已用额度
-	Capital_Flow map[string]string `json:"capitalFlow"` // 资金流信息
-	Cargo_Flow   map[string]string `json:"cargoFlow"`   // 货物流信息
+	Capital_Flow map[string]string `json:"capitalFlow"` // 资金流信息 (时间+信息)
+	Cargo_Flow   map[string]string `json:"cargoFlow"`   // 货物流信息 (时间+信息)
 }
 
 // 尽职调查报告 Due	Diligence Report
 type DDR struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ID            string        `json:"id"`
 	Balance_Sheet Balance_Sheet `json:"balanceSheet"` // 资产负债表
 	Description   string        `json:"description"`  // 其他描述
 }
 
 // 资产负债表
 type Balance_Sheet struct {
+	ID                 string   `json:"id"`
 	LRFS               string   `json:"lrfs"`              // 法人代表家族史 legal representative family history
 	Actual_Controllers []string `json:"actualControllers"` // 实际控制人列表
 }
@@ -80,6 +84,7 @@ type Balance_Sheet struct {
 // 招标信息
 type Bid struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ID           string       `json:"id"`
 	Start_Date   string       `json:"startDate"`   // 发起时间
 	End_Date     string       `json:"end_date"`    // 结束时间
 	Project      Project      `json:"project"`     // 所属项目
@@ -90,11 +95,12 @@ type Bid struct {
 
 // 金融机构报价
 type Offer struct {
+	ID            string  `json:"id"`
 	Loan_Amount   int64   `json:"loanAmount"`   // 放款金额
 	Interest_Rate float64 `json:"interestRate"` // 利率
 }
 
-// DDGSCChainCode example simple Chaincode implementation
+// DDGSCChainCode implementation
 type DDGSCChainCode struct {
 }
 
@@ -129,7 +135,6 @@ func (t *DDGSCChainCode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 	//if err != nil {
 	//	return shim.Error(err.Error())
 	//}
-
 	return shim.Success(nil)
 }
 
@@ -140,131 +145,301 @@ func (t *DDGSCChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	function, args := stub.GetFunctionAndParameters()
 	fmt.Println("invoke is running " + function)
 
-	if function == "add" {
-		return t.add(stub, args)
-	} else if function == "delete" {
-		// Deletes an entity from its state
-		return t.delete(stub, args)
-	} else if function == "query" {
-		// queries an entity state
-		return t.query(stub, args)
-	} else if function == "move" {
-		// Deletes an entity from its state
-		return t.move(stub, args)
+	//if function == "add" {
+	//	return t.add(stub, args)
+	//} else if function == "delete" {
+	//	// Deletes an entity from its state
+	//	//return t.delete(stub, args)
+	//} else if function == "query" {
+	//	// queries an entity state
+	//	return t.query(stub, args)
+	//} else if function == "move" {
+	//	// Deletes an entity from its state
+	//	//return t.move(stub, args)
+	//}
+
+	switch function {
+	case "addEnterprise":
+		return t.addEnterprise(stub, args)
+	case "addFI":
+		return t.addFI(stub, args)
+	case "addProject":
+		return t.addProject(stub, args)
+	case "addDDR":
+		return t.addDDR(stub, args)
+	case "addBalanceSheet":
+		return t.addBalanceSheet(stub, args)
+	case "addBid":
+		return t.addBid(stub, args)
+	case "addOffer":
+		return t.addOffer(stub, args)
+	case "queryEnterprise":
+		return t.queryEnterprise(stub, args)
+	case "queryFI":
+		return t.queryFI(stub, args)
+	case "queryProject":
+		return t.queryProject(stub, args)
+	case "queryDDR":
+		return t.queryDDR(stub, args)
+	case "queryBalanceSheet":
+		return t.queryBalanceSheet(stub, args)
+	case "queryBid":
+		return t.queryBid(stub, args)
+	case "queryOffer":
+		return t.queryOffer(stub, args)
+	default:
+		logger.Errorf("Unknown action, check the first argument, got: %v", args[0])
+		return shim.Error(fmt.Sprintf("Unknown action, check the first argument, got: %v", args[0]))
 	}
 
 	//logger.Errorf("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'. But got: %v", args[0])
 	//return shim.Error(fmt.Sprintf("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'. But got: %v", args[0]))
-	logger.Errorf("Unknown action, check the first argument, got: %v", args[0])
-	return shim.Error(fmt.Sprintf("Unknown action, check the first argument, got: %v", args[0]))
+
 }
 
-// add new data to the blockchain
-func (t *DDGSCChainCode) add(stubInterface shim.ChaincodeStubInterface, strings []string) pb.Response {
+//// add new data to the blockchain
+//func (t *DDGSCChainCode) add(stubInterface shim.ChaincodeStubInterface, args []string) pb.Response {
+//	return shim.Success(nil)
+//}
+//
+//// Query callback representing the query of a chaincode
+//func (t *DDGSCChainCode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+//	//var A string // Entities
+//	//var err error
+//	//
+//	//if len(args) != 1 {
+//	//	return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
+//	//}
+//	//
+//	//A = args[0]
+//	//
+//	//// Get the state from the ledger
+//	//Avalbytes, err := stub.GetState(A)
+//	//if err != nil {
+//	//	jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
+//	//	return shim.Error(jsonResp)
+//	//}
+//	//
+//	//if Avalbytes == nil {
+//	//	jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
+//	//	return shim.Error(jsonResp)
+//	//}
+//	//
+//	//jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
+//	//logger.Infof("Query Response:%s\n", jsonResp)
+//	return shim.Success(Avalbytes)
+//}
+//
+//func (t *DDGSCChainCode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+//	//// must be an invoke
+//	//var A, B string    // Entities
+//	//var Aval, Bval int // Asset holdings
+//	//var X int          // Transaction value
+//	//var err error
+//	//
+//	//if len(args) != 3 {
+//	//	return shim.Error("Incorrect number of arguments. Expecting 4, function followed by 2 names and 1 value")
+//	//}
+//	//
+//	//A = args[0]
+//	//B = args[1]
+//	//
+//	//// Get the state from the ledger
+//	//// will be nice to have a GetAllState call to ledger
+//	//Avalbytes, err := stub.GetState(A)
+//	//if err != nil {
+//	//	return shim.Error("Failed to get state")
+//	//}
+//	//if Avalbytes == nil {
+//	//	return shim.Error("Entity not found")
+//	//}
+//	//Aval, _ = strconv.Atoi(string(Avalbytes))
+//	//
+//	//Bvalbytes, err := stub.GetState(B)
+//	//if err != nil {
+//	//	return shim.Error("Failed to get state")
+//	//}
+//	//if Bvalbytes == nil {
+//	//	return shim.Error("Entity not found")
+//	//}
+//	//Bval, _ = strconv.Atoi(string(Bvalbytes))
+//	//
+//	//// Perform the execution
+//	//X, err = strconv.Atoi(args[2])
+//	//if err != nil {
+//	//	return shim.Error("Invalid transaction amount, expecting a integer value")
+//	//}
+//	//Aval = Aval - X
+//	//Bval = Bval + X
+//	//logger.Infof("Aval = %d, Bval = %d\n", Aval, Bval)
+//	//
+//	//// Write the state back to the ledger
+//	//err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
+//	//if err != nil {
+//	//	return shim.Error(err.Error())
+//	//}
+//	//
+//	//err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
+//	//if err != nil {
+//	//	return shim.Error(err.Error())
+//	//}
+//	return shim.Success(nil)
+//}
+//
+//// Deletes an entity from state
+//func (t *DDGSCChainCode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+//	//if len(args) != 1 {
+//	//	return shim.Error("Incorrect number of arguments. Expecting 1")
+//	//}
+//	//
+//	//A := args[0]
+//	//
+//	//// Delete the key from the state in ledger
+//	//err := stub.DelState(A)
+//	//if err != nil {
+//	//	return shim.Error("Failed to delete state")
+//	//}
+//
+//	return shim.Success(nil)
+//}
+
+func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	/*
+		0	ID
+		1	Name
+		2	Legal_Personality
+		3	Registered_Capbital
+		4	Date_of_Establishment
+		5	Business_Scope
+		6	Basic_FI_Name
+		7	Basic_FI_Account
+	*/
+
+	if len(args) != 8 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	Name := args[1]
+	Legal_Personality := args[2]
+	Registered_Capbital := args[3]
+	Date_of_Establishment := args[4]
+	Business_Scope := args[5]
+	Basic_FI_Name := args[6]
+	Basic_FI_Account := args[7]
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get enterprise: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		return shim.Error("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
+	}
+	Enterprise := &Enterprise{ID, Name, Legal_Personality, Registered_Capbital, Date_of_Establishment, Business_Scope, Basic_FI_Name, Basic_FI_Account}
+
+	Enterprise_JSON_Byte, err := json.Marshal(Enterprise)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, Enterprise_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	return shim.Success(nil)
 }
+func (t *DDGSCChainCode) addFI(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
-func (t *DDGSCChainCode) move(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//// must be an invoke
-	//var A, B string    // Entities
-	//var Aval, Bval int // Asset holdings
-	//var X int          // Transaction value
-	//var err error
-	//
-	//if len(args) != 3 {
-	//	return shim.Error("Incorrect number of arguments. Expecting 4, function followed by 2 names and 1 value")
-	//}
-	//
-	//A = args[0]
-	//B = args[1]
-	//
-	//// Get the state from the ledger
-	//// TODO: will be nice to have a GetAllState call to ledger
-	//Avalbytes, err := stub.GetState(A)
-	//if err != nil {
-	//	return shim.Error("Failed to get state")
-	//}
-	//if Avalbytes == nil {
-	//	return shim.Error("Entity not found")
-	//}
-	//Aval, _ = strconv.Atoi(string(Avalbytes))
-	//
-	//Bvalbytes, err := stub.GetState(B)
-	//if err != nil {
-	//	return shim.Error("Failed to get state")
-	//}
-	//if Bvalbytes == nil {
-	//	return shim.Error("Entity not found")
-	//}
-	//Bval, _ = strconv.Atoi(string(Bvalbytes))
-	//
-	//// Perform the execution
-	//X, err = strconv.Atoi(args[2])
-	//if err != nil {
-	//	return shim.Error("Invalid transaction amount, expecting a integer value")
-	//}
-	//Aval = Aval - X
-	//Bval = Bval + X
-	//logger.Infof("Aval = %d, Bval = %d\n", Aval, Bval)
-	//
-	//// Write the state back to the ledger
-	//err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
-	//if err != nil {
-	//	return shim.Error(err.Error())
-	//}
-	//
-	//err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
-	//if err != nil {
-	//	return shim.Error(err.Error())
-	//}
+	/*
+		0	ID
+		1	Name
+		2	Legal_Personality
+		3	Registered_Capbital
+		4	Date_of_Establishment
+		5	Business_Scope
+		6	Basic_FI_Name
+		7	Basic_FI_Account
+	*/
+
+	if len(args) != 8 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	Name := args[1]
+	Legal_Personality := args[2]
+	Registered_Capbital := args[3]
+	Date_of_Establishment := args[4]
+	Business_Scope := args[5]
+	Basic_FI_Name := args[6]
+	Basic_FI_Account := args[7]
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get enterprise: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		return shim.Error("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
+	}
+	Enterprise := &Enterprise{ID, Name, Legal_Personality, Registered_Capbital, Date_of_Establishment, Business_Scope, Basic_FI_Name, Basic_FI_Account}
+
+	Enterprise_JSON_Byte, err := json.Marshal(Enterprise)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, Enterprise_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 
 	return shim.Success(nil)
 }
-
-// Deletes an entity from state
-func (t *DDGSCChainCode) delete(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//if len(args) != 1 {
-	//	return shim.Error("Incorrect number of arguments. Expecting 1")
-	//}
-	//
-	//A := args[0]
-	//
-	//// Delete the key from the state in ledger
-	//err := stub.DelState(A)
-	//if err != nil {
-	//	return shim.Error("Failed to delete state")
-	//}
-
+func (t *DDGSCChainCode) addProject(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	return shim.Success(nil)
 }
-
-// Query callback representing the query of a chaincode
-func (t *DDGSCChainCode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-
-	//var A string // Entities
-	//var err error
-	//
-	//if len(args) != 1 {
-	//	return shim.Error("Incorrect number of arguments. Expecting name of the person to query")
-	//}
-	//
-	//A = args[0]
-	//
-	//// Get the state from the ledger
-	//Avalbytes, err := stub.GetState(A)
-	//if err != nil {
-	//	jsonResp := "{\"Error\":\"Failed to get state for " + A + "\"}"
-	//	return shim.Error(jsonResp)
-	//}
-	//
-	//if Avalbytes == nil {
-	//	jsonResp := "{\"Error\":\"Nil amount for " + A + "\"}"
-	//	return shim.Error(jsonResp)
-	//}
-	//
-	//jsonResp := "{\"Name\":\"" + A + "\",\"Amount\":\"" + string(Avalbytes) + "\"}"
-	//logger.Infof("Query Response:%s\n", jsonResp)
-	return shim.Success(Avalbytes)
+func (t *DDGSCChainCode) addDDR(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) addBalanceSheet(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) addBid(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryEnterprise(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryFI(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryProject(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryDDR(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryBalanceSheet(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryBid(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
+}
+func (t *DDGSCChainCode) queryOffer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	//return shim.Success(Avalbytes)
+	return shim.Success(nil)
 }
 
 func main() {
