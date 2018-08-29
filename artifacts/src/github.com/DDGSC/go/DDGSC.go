@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
+	"strconv"
 )
 
 var logger = shim.NewLogger("DDGSC_cc0")
@@ -45,7 +46,7 @@ type FI struct {
 	ID                  string   `json:"id"`                 // 金融机构ID
 	Name                string   `json:"name"`               // 金融机构名称
 	Address             string   `json:"address"`            // 金融机构地址
-	Project_Involvement []string `json:"projectInvolvement"` // 参与的项目
+	Project_Involvement []string `json:"projectInvolvement"` // 参与的项目ID列表
 }
 
 // 项目
@@ -54,12 +55,12 @@ type Project struct {
 	ID           string            `json:"id"`          // 项目ID
 	Name         string            `json:"name"`        // 项目名称
 	Description  string            `json:"description"` // 项目简介
-	DDR          string            `json:"ddr"`         // 尽职调查报告列表ID
-	Core_Firm    []Enterprise      `json:"coreFirm"`    // 核心企业列表
-	Updown_Firm  []Enterprise      `json:"updownFirm"`  // 上下游企业列表
+	DDR          string            `json:"ddr"`         // 尽职调查报告ID
+	Core_Firm    []string          `json:"coreFirm"`    // 核心企业ID列表
+	Updown_Firm  []string          `json:"updownFirm"`  // 上下游企业ID列表
 	Progress     map[string]string `json:"progress"`    // 项目进展 (时间+项目进展描述)
-	Bid_Info     Bid               `json:"bidInfo"`     // 招标信息
-	Winner_FI    FI                `json:"winnerFI"`    // 中标金融机构
+	Bid_Info     string            `json:"bidInfo"`     // 招标信息
+	Winner_FI    string            `json:"winnerFI"`    // 中标金融机构
 	Credit_Limit float64           `json:"creditLimit"` // 授信额度
 	Used_Limit   float64           `json:"usedLimit"`   // 已用额度
 	Capital_Flow map[string]string `json:"capitalFlow"` // 资金流信息 (时间+信息)
@@ -69,9 +70,9 @@ type Project struct {
 // 尽职调查报告 Due	Diligence Report
 type DDR struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
-	ID            string        `json:"id"`
-	Balance_Sheet Balance_Sheet `json:"balanceSheet"` // 资产负债表
-	Description   string        `json:"description"`  // 其他描述
+	ID            string `json:"id"`
+	Balance_Sheet string `json:"balanceSheet"` // 资产负债表_ID
+	Description   string `json:"description"`  // 其他描述
 }
 
 // 资产负债表
@@ -87,7 +88,7 @@ type Bid struct {
 	ID           string       `json:"id"`
 	Start_Date   string       `json:"startDate"`   // 发起时间
 	End_Date     string       `json:"end_date"`    // 结束时间
-	Project      Project      `json:"project"`     // 所属项目
+	Project      string       `json:"project"`     // 所属项目ID
 	Involved_FIs []FI         `json:"involvedFIs"` // 参与的金融机构列表
 	Offers       map[FI]Offer `json:"offers"`      // 金融机构报价
 	Winner_FI    FI           `json:"winnerFI"`    // 中标银行
@@ -303,6 +304,10 @@ func (t *DDGSCChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 //	return shim.Success(nil)
 //}
 
+// todo: 审理各个struct里头的参数，确定返回的信息的格式
+// todo：检查获取的参数的数目方法是否数量正确
+
+// Add
 func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	/*
 		0	ID
@@ -353,93 +358,413 @@ func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []
 func (t *DDGSCChainCode) addFI(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 
 	/*
+		添加新的FI的时候默认是没有project ID的，所以只保留两个参数，在chaincode上做一次检查
 		0	ID
 		1	Name
-		2	Legal_Personality
-		3	Registered_Capbital
-		4	Date_of_Establishment
-		5	Business_Scope
-		6	Basic_FI_Name
-		7	Basic_FI_Account
+		2	Address
+		3	Project_Involvement	空	todo: updateProjectInvolvment
 	*/
 
-	if len(args) != 8 {
+	if len(args) != 3 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
 	ID := args[0]
 	Name := args[1]
-	Legal_Personality := args[2]
-	Registered_Capbital := args[3]
-	Date_of_Establishment := args[4]
-	Business_Scope := args[5]
-	Basic_FI_Name := args[6]
-	Basic_FI_Account := args[7]
+	Address := args[2]
+	Project_Involvement := []string{}
 
 	IDCheck, err := stub.GetState(ID)
 	if err != nil {
-		return shim.Error("Failed to get enterprise: " + err.Error())
+		return shim.Error("Failed to get FI: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
-		return shim.Error("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		fmt.Println("This FI already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		return shim.Error("This FI already exists.\nID: " + ID + "\nName: " + Name + "\n")
 	}
-	Enterprise := &Enterprise{ID, Name, Legal_Personality, Registered_Capbital, Date_of_Establishment, Business_Scope, Basic_FI_Name, Basic_FI_Account}
+	FI := &FI{ID, Name, Address, Project_Involvement}
 
-	Enterprise_JSON_Byte, err := json.Marshal(Enterprise)
+	FI_JSON_Byte, err := json.Marshal(FI)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, Enterprise_JSON_Byte)
+	err = stub.PutState(ID, FI_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
 	return shim.Success(nil)
 }
+
 func (t *DDGSCChainCode) addProject(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	/*
+		0	ID
+		1	Name
+		2	Description
+		3	DDR	空
+		|	Core_Firm	空	todo updateCoreFirm
+		|	Updown_Firm todo updateUpdownFirm
+		|	Progress	空 todo updateProgress
+		|	Bid_Info	空 todo updateBidInfo
+		| 	Winner_FI	空 todo updateWinnerFI
+		|	Credit_Limit	空 todo updateCreditLimit
+		|	Used_Limit	空 todo updateUsedLimit
+		|	Capital_Flow	空	todo updateCapitalFlow
+		|	Cargo_Flow	空	todo updateCargoFlow
+	*/
+
+	if len(args) != 4 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	Name := args[1]
+	Description := args[2]
+	DDR := string("")
+	Core_Firm := []string{}
+	Updown_Firm := []string{}
+	Progress := make(map[string]string)
+	Bid_Info := string("")
+	Winner_FI := string("")
+	Credit_Limit := float64(0)
+	Used_Limit := float64(0)
+	Capital_Flow := make(map[string]string)
+	Cargo_Flow := make(map[string]string)
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get Project: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This Project already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		return shim.Error("This Project already exists.\nID: " + ID + "\nName: " + Name + "\n")
+	}
+	Project := &Project{ID, Name, Description, DDR, Core_Firm, Updown_Firm, Progress, Bid_Info, Winner_FI, Credit_Limit, Used_Limit, Capital_Flow, Cargo_Flow}
+
+	Project_JSON_Byte, err := json.Marshal(Project)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, Project_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
 	return shim.Success(nil)
 }
+
 func (t *DDGSCChainCode) addDDR(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	/*
+		新的尽职调查报告 balance sheet默认为空
+		0	ID
+		|	Balance_Sheet	空	 todo updateBalanceSheet
+		1	Description
+	*/
+
+	if len(args) != 2 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	Balance_Sheet := string("")
+	Description := args[1]
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get DDR: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This DDR already exists.\nID: " + ID + "\n")
+		return shim.Error("This DDR already exists.\nID: " + ID + "\n")
+	}
+	DDR := &DDR{ID, Balance_Sheet, Description}
+
+	DDR_JSON_Byte, err := json.Marshal(DDR)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, DDR_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	return shim.Success(nil)
+
 }
+
 func (t *DDGSCChainCode) addBalanceSheet(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	/*
+		新的产品负债表 实际控制人列表为空
+		0	ID
+		1	LRFS
+		|	Actual_Controllers 空	todo: updateActualControllers
+	*/
+
+	if len(args) != 2 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	LRFS := args[1]
+	Actual_Controllers := []string{}
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get BalanceSheet: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This BalanceSheet already exists.\nID: " + ID + "\n")
+		return shim.Error("This BalanceSheet already exists.\nID: " + ID + "\n")
+	}
+	Balance_Sheet := &Balance_Sheet{ID, LRFS, Actual_Controllers}
+
+	BalanceSheet_JSON_Byte, err := json.Marshal(Balance_Sheet)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, BalanceSheet_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	return shim.Success(nil)
 }
 func (t *DDGSCChainCode) addBid(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	/*
+		新的招标信息 实际控制人列表为空
+		0	ID
+		1	Start_Date
+		2	End_Date
+		3	Project
+		|	Involved_FIs 空	todo: updateINVolvedFIs
+		|	Offers	空	todo: updateWInner_FI
+		|	Winner_FI	空	todo：updateWInner_FI
+	*/
+
+	if len(args) != 4 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	Start_Date := args[1]
+	End_Date := args[2]
+	Project := args[3]
+	Involved_FIs := []FI{}
+	Offers := make(map[FI]Offer)
+	Winner_FI := FI{}
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get Bid: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This Bid already exists.\nID: " + ID + "\n")
+		return shim.Error("This Bid already exists.\nID: " + ID + "\n")
+	}
+	Bid := &Bid{ID, Start_Date, End_Date, Project, Involved_FIs, Offers, Winner_FI}
+
+	Bid_JSON_Byte, err := json.Marshal(Bid)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, Bid_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
 	return shim.Success(nil)
 }
+
 func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 	return shim.Success(nil)
+	/*
+		新的招标信息 实际控制人列表为空
+		0	ID
+		1	Loan_Amount
+		2	Interest_Rate
+	*/
+
+	if len(args) != 3 {
+		return shim.Error("Incorrect arguments, please check your arguments")
+	}
+
+	ID := args[0]
+	Loan_Amount, err := strconv.ParseInt(args[1], 10, 64)
+	if err != nil {
+		return shim.Error("3rd argument must be a numeric string")
+	}
+	Interest_Rate, err := strconv.ParseFloat(args[2], 64)
+	if err != nil {
+		return shim.Error("3rd argument must be a numeric string")
+	}
+
+	IDCheck, err := stub.GetState(ID)
+	if err != nil {
+		return shim.Error("Failed to get Offer: " + err.Error())
+	} else if IDCheck != nil {
+
+		fmt.Println("This Offer already exists.\nID: " + ID + "\n")
+		return shim.Error("This Offer already exists.\nID: " + ID + "\n")
+	}
+	Offer := &Offer{ID, Loan_Amount, Interest_Rate}
+
+	Offer_JSON_Byte, err := json.Marshal(Offer)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	err = stub.PutState(ID, Offer_JSON_Byte)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
 }
+
+// Query
 func (t *DDGSCChainCode) queryEnterprise(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
+
 func (t *DDGSCChainCode) queryFI(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
+
 func (t *DDGSCChainCode) queryProject(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
+
 func (t *DDGSCChainCode) queryDDR(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
+
 func (t *DDGSCChainCode) queryBalanceSheet(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
+
 func (t *DDGSCChainCode) queryBid(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
+
 func (t *DDGSCChainCode) queryOffer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	//return shim.Success(Avalbytes)
-	return shim.Success(nil)
+	var name, jsonResp string
+	var err error
+
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
+	}
+
+	name = args[0]
+	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	if err != nil {
+		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		return shim.Error(jsonResp)
+	} else if valAsbytes == nil {
+		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		return shim.Error(jsonResp)
+	}
+	return shim.Success(valAsbytes)
 }
 
 func main() {
