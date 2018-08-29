@@ -305,7 +305,6 @@ func (t *DDGSCChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 //}
 
 // todo: 审理各个struct里头的参数，确定返回的信息的格式
-// todo：检查获取的参数的数目方法是否数量正确
 
 // Add
 func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -628,140 +627,140 @@ func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []strin
 
 // Query
 func (t *DDGSCChainCode) queryEnterprise(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"Enterprise does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
 }
 
 func (t *DDGSCChainCode) queryFI(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"FI does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
 }
 
 func (t *DDGSCChainCode) queryProject(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"Project does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
 }
 
 func (t *DDGSCChainCode) queryDDR(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"DDR does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
 }
 
 func (t *DDGSCChainCode) queryBalanceSheet(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"BalanceSheet does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
 }
 
 func (t *DDGSCChainCode) queryBid(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"Bid does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
 }
 
 func (t *DDGSCChainCode) queryOffer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	var name, jsonResp string
+	var ID, jsonResp string
 	var err error
 
 	if len(args) != 1 {
 		return shim.Error("Incorrect number of arguments. Expecting name of the marble to query")
 	}
 
-	name = args[0]
-	valAsbytes, err := stub.GetState(name) //get the marble from chaincode state
+	ID = args[0]
+	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
-		jsonResp = "{\"Error\":\"Failed to get state for " + name + "\"}"
+		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
 	} else if valAsbytes == nil {
-		jsonResp = "{\"Error\":\"Marble does not exist: " + name + "\"}"
+		jsonResp = "{\"Error\":\"Offer does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
 	return shim.Success(valAsbytes)
