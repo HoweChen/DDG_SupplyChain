@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
 	pb "github.com/hyperledger/fabric/protos/peer"
-	"strconv"
 )
 
 // todo: 将错误返回的信息改进成json格式的
@@ -221,36 +220,44 @@ func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []
 		8	Project_Involvement
 	*/
 
-	if len(args) != 8 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	Name := args[1]
-	Legal_Personality := args[2]
-	Registered_Capbital := args[3]
-	Date_of_Establishment := args[4]
-	Business_Scope := args[5]
-	Basic_FI_Name := args[6]
-	Basic_FI_Account := args[7]
-	Project_Involvement := []string{}
+	//ID := args[0]
+	//Name := args[1]
+	//Legal_Personality := args[2]
+	//Registered_Capbital := args[3]
+	//Date_of_Establishment := args[4]
+	//Business_Scope := args[5]
+	//Basic_FI_Name := args[6]
+	//Basic_FI_Account := args[7]
+	//Project_Involvement := []string{}
 
-	IDCheck, err := stub.GetState(ID)
+	Enterprise := Enterprise{
+		Project_Involvement: []string{},
+	}
+	err := json.Unmarshal([]byte(args[0]), &Enterprise)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	IDCheck, err := stub.GetState(Enterprise.ID)
 	if err != nil {
 		return shim.Error("Failed to get enterprise: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
-		return shim.Error("This enterprise already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		fmt.Println("This enterprise already exists.\nID: " + Enterprise.ID + "\nName: " + Enterprise.Name + "\n")
+		return shim.Error("This enterprise already exists.\nID: " + Enterprise.ID + "\nName: " + Enterprise.Name + "\n")
 	}
-	Enterprise := &Enterprise{ID, Name, Legal_Personality, Registered_Capbital, Date_of_Establishment, Business_Scope, Basic_FI_Name, Basic_FI_Account, Project_Involvement}
+	//Enterprise := &Enterprise{ID, Name, Legal_Personality, Registered_Capbital, Date_of_Establishment, Business_Scope, Basic_FI_Name, Basic_FI_Account, Project_Involvement}
 
 	Enterprise_JSON_Byte, err := json.Marshal(Enterprise)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, Enterprise_JSON_Byte)
+	err = stub.PutState(Enterprise.ID, Enterprise_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -267,40 +274,48 @@ func (t *DDGSCChainCode) addFI(stub shim.ChaincodeStubInterface, args []string) 
 		3	Project_Involvement
 	*/
 
-	if len(args) != 4 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	Name := args[1]
-	Address := args[2]
-	//Project_Involvement := []string{}
-	Project_Involvement := (args[3])
+	//ID := args[0]
+	//Name := args[1]
+	//Address := args[2]
+	////Project_Involvement := []string{}
+	//Project_Involvement := (args[3])
 
-	IDCheck, err := stub.GetState(ID)
+	FI := FI{
+		Project_Involvement: []string{},
+	}
+	err := json.Unmarshal([]byte(args[0]), &FI)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	IDCheck, err := stub.GetState(FI.ID)
 	if err != nil {
 		return shim.Error("Failed to get FI: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This FI already exists.\nID: " + ID + "\nName: " + Name + "\n")
-		return shim.Error("This FI already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		fmt.Println("This FI already exists.\nID: " + FI.ID + "\nName: " + FI.Name + "\n")
+		return shim.Error("This FI already exists.\nID: " + FI.ID + "\nName: " + FI.Name + "\n")
 	}
-	//
-	FI := FI{}
-	FI.ID = ID
-	FI.Name = Name
-	FI.Address = Address
-	err_jsonfy := json.Unmarshal([]byte(Project_Involvement), &FI)
-	if err_jsonfy != nil {
-		return shim.Error(err_jsonfy.Error())
-	}
+
+	//FI := FI{}
+	//FI.ID = ID
+	//FI.Name = Name
+	//FI.Address = Address
+	//err_jsonfy := json.Unmarshal([]byte(Project_Involvement), &FI)
+	//if err_jsonfy != nil {
+	//	return shim.Error(err_jsonfy.Error())
+	//}
 
 	FI_JSON_Byte, err := json.Marshal(FI)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, FI_JSON_Byte)
+	err = stub.PutState(FI.ID, FI_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -324,65 +339,77 @@ func (t *DDGSCChainCode) addProject(stub shim.ChaincodeStubInterface, args []str
 		|	Capital_Flow	空
 		|	Cargo_Flow	空
 	*/
-	if len(args) != 5 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	Name := args[1]
-	Description := args[2]
-	DDR := string("")
-	Core_Firm := args[3]
-	Updown_Firm := args[4]
-	Progress := args[5]
-	Bid_Info := string("")
-	Winner_FI := string("")
-	Credit_Limit := float64(0)
-	Used_Limit := float64(0)
-	Capital_Flow := make(map[string]string)
-	Cargo_Flow := make(map[string]string)
+	//ID := args[0]
+	//Name := args[1]
+	//Description := args[2]
+	//DDR := string("")
+	//Core_Firm := args[3]
+	//Updown_Firm := args[4]
+	//Progress := args[5]
+	//Bid_Info := string("")
+	//Winner_FI := string("")
+	//Credit_Limit := float64(0)
+	//Used_Limit := float64(0)
+	//Capital_Flow := make(map[string]string)
+	//Cargo_Flow := make(map[string]string)
 
-	IDCheck, err := stub.GetState(ID)
+	Project := Project{
+		Core_Firm:    []string{},
+		Updown_Firm:  []string{},
+		Progress:     make(map[string]string),
+		Capital_Flow: make(map[string]string),
+		Cargo_Flow:   make(map[string]string),
+	}
+	err := json.Unmarshal([]byte(args[0]), &Project)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	IDCheck, err := stub.GetState(Project.ID)
 	if err != nil {
 		return shim.Error("Failed to get Project: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This Project already exists.\nID: " + ID + "\nName: " + Name + "\n")
-		return shim.Error("This Project already exists.\nID: " + ID + "\nName: " + Name + "\n")
+		fmt.Println("This Project already exists.\nID: " + Project.ID + "\nName: " + Project.Name + "\n")
+		return shim.Error("This Project already exists.\nID: " + Project.ID + "\nName: " + Project.Name + "\n")
 	}
 	//Project := &Project{ID, Name, Description, DDR, Core_Firm, Updown_Firm, Progress, Bid_Info, Winner_FI, Credit_Limit, Used_Limit, Capital_Flow, Cargo_Flow}
-	Project := Project{
-		ID:           ID,
-		Name:         Name,
-		Description:  Description,
-		DDR:          DDR,
-		Progress:     make(map[string]string),
-		Bid_Info:     Bid_Info,
-		Winner_FI:    Winner_FI,
-		Credit_Limit: Credit_Limit,
-		Used_Limit:   Used_Limit,
-		Capital_Flow: Capital_Flow,
-		Cargo_Flow:   Cargo_Flow,
-	}
-	err = json.Unmarshal([]byte(Core_Firm), &Project)
-	if err != nil {
-		return shim.Error("Wrong in unmarshalling Core_Firm: " + err.Error())
-	}
-	err = json.Unmarshal([]byte(Updown_Firm), &Project)
-	if err != nil {
-		return shim.Error("Wrong in unmarshalling Updown_Firm: " + err.Error())
-	}
-	err = json.Unmarshal([]byte(Progress), &Project)
-	if err != nil {
-		return shim.Error("Wrong in unmarshalling Progress: " + err.Error())
-	}
+	//Project := Project{
+	//	ID:           ID,
+	//	Name:         Name,
+	//	Description:  Description,
+	//	DDR:          DDR,
+	//	Progress:     make(map[string]string),
+	//	Bid_Info:     Bid_Info,
+	//	Winner_FI:    Winner_FI,
+	//	Credit_Limit: Credit_Limit,
+	//	Used_Limit:   Used_Limit,
+	//	Capital_Flow: Capital_Flow,
+	//	Cargo_Flow:   Cargo_Flow,
+	//}
+	//err = json.Unmarshal([]byte(Core_Firm), &Project)
+	//if err != nil {
+	//	return shim.Error("Wrong in unmarshalling Core_Firm: " + err.Error())
+	//}
+	//err = json.Unmarshal([]byte(Updown_Firm), &Project)
+	//if err != nil {
+	//	return shim.Error("Wrong in unmarshalling Updown_Firm: " + err.Error())
+	//}
+	//err = json.Unmarshal([]byte(Progress), &Project)
+	//if err != nil {
+	//	return shim.Error("Wrong in unmarshalling Progress: " + err.Error())
+	//}
 
 	Project_JSON_Byte, err := json.Marshal(Project)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, Project_JSON_Byte)
+	err = stub.PutState(Project.ID, Project_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -398,30 +425,36 @@ func (t *DDGSCChainCode) addDDR(stub shim.ChaincodeStubInterface, args []string)
 		2	Description
 	*/
 
-	if len(args) != 3 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	Balance_Sheet := args[1]
-	Description := args[2]
+	//ID := args[0]
+	//Balance_Sheet := args[1]
+	//Description := args[2]
 
-	IDCheck, err := stub.GetState(ID)
+	DDR := DDR{}
+	err := json.Unmarshal([]byte(args[0]), &DDR)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	IDCheck, err := stub.GetState(DDR.ID)
 	if err != nil {
 		return shim.Error("Failed to get DDR: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This DDR already exists.\nID: " + ID + "\n")
-		return shim.Error("This DDR already exists.\nID: " + ID + "\n")
+		fmt.Println("This DDR already exists.\nID: " + DDR.ID + "\n")
+		return shim.Error("This DDR already exists.\nID: " + DDR.ID + "\n")
 	}
-	DDR := &DDR{ID, Balance_Sheet, Description}
+	//DDR := &DDR{ID, Balance_Sheet, Description}
 
 	DDR_JSON_Byte, err := json.Marshal(DDR)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, DDR_JSON_Byte)
+	err = stub.PutState(DDR.ID, DDR_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -438,38 +471,46 @@ func (t *DDGSCChainCode) addBalanceSheet(stub shim.ChaincodeStubInterface, args 
 		2	Actual_Controllers
 	*/
 
-	if len(args) != 3 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	LRFS := args[1]
-	Actual_Controllers := args[2]
+	//ID := args[0]
+	//LRFS := args[1]
+	//Actual_Controllers := args[2]
 
-	IDCheck, err := stub.GetState(ID)
+	Balance_Sheet := Balance_Sheet{
+		Actual_Controllers: []string{},
+	}
+	err := json.Unmarshal([]byte(args[0]), &Balance_Sheet)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	IDCheck, err := stub.GetState(Balance_Sheet.ID)
 	if err != nil {
 		return shim.Error("Failed to get BalanceSheet: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This BalanceSheet already exists.\nID: " + ID + "\n")
-		return shim.Error("This BalanceSheet already exists.\nID: " + ID + "\n")
+		fmt.Println("This BalanceSheet already exists.\nID: " + Balance_Sheet.ID + "\n")
+		return shim.Error("This BalanceSheet already exists.\nID: " + Balance_Sheet.ID + "\n")
 	}
-	Balance_Sheet := Balance_Sheet{
-		ID:   ID,
-		LRFS: LRFS,
-	}
+	//Balance_Sheet := Balance_Sheet{
+	//	ID:   ID,
+	//	LRFS: LRFS,
+	//}
 
-	err = json.Unmarshal([]byte(Actual_Controllers), &Balance_Sheet)
-	if err != nil {
-		return shim.Error("Wrong in unmarshalling Balance_Sheet: " + err.Error())
-	}
+	//err = json.Unmarshal([]byte(Actual_Controllers), &Balance_Sheet)
+	//if err != nil {
+	//	return shim.Error("Wrong in unmarshalling Balance_Sheet: " + err.Error())
+	//}
 
 	BalanceSheet_JSON_Byte, err := json.Marshal(Balance_Sheet)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, BalanceSheet_JSON_Byte)
+	err = stub.PutState(Balance_Sheet.ID, BalanceSheet_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -488,34 +529,43 @@ func (t *DDGSCChainCode) addBid(stub shim.ChaincodeStubInterface, args []string)
 		|	Winner_FI	空
 	*/
 
-	if len(args) != 4 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	Start_Date := args[1]
-	End_Date := args[2]
-	Project := args[3]
-	Involved_FIs := []string{}
-	Offers := make(map[string]float64)
-	Winner_FI := string("")
+	//ID := args[0]
+	//Start_Date := args[1]
+	//End_Date := args[2]
+	//Project := args[3]
+	//Involved_FIs := []string{}
+	//Offers := make(map[string]float64)
+	//Winner_FI := string("")
 
-	IDCheck, err := stub.GetState(ID)
+	Bid := Bid{
+		Involved_FIs: []string{},
+		Offers:       make(map[string]float64),
+	}
+	err := json.Unmarshal([]byte(args[0]), &Bid)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	IDCheck, err := stub.GetState(Bid.ID)
 	if err != nil {
 		return shim.Error("Failed to get Bid: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This Bid already exists.\nID: " + ID + "\n")
-		return shim.Error("This Bid already exists.\nID: " + ID + "\n")
+		fmt.Println("This Bid already exists.\nID: " + Bid.ID + "\n")
+		return shim.Error("This Bid already exists.\nID: " + Bid.ID + "\n")
 	}
-	Bid := &Bid{ID, Start_Date, End_Date, Project, Involved_FIs, Offers, Winner_FI}
+	//Bid := &Bid{ID, Start_Date, End_Date, Project, Involved_FIs, Offers, Winner_FI}
 
 	Bid_JSON_Byte, err := json.Marshal(Bid)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, Bid_JSON_Byte)
+	err = stub.PutState(Bid.ID, Bid_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -532,36 +582,42 @@ func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []strin
 		2	Interest_Rate
 	*/
 
-	if len(args) != 3 {
+	if len(args) != 1 {
 		return shim.Error("Incorrect arguments, please check your arguments")
 	}
 
-	ID := args[0]
-	Loan_Amount, err := strconv.ParseInt(args[1], 10, 64)
+	//ID := args[0]
+	//Loan_Amount, err := strconv.ParseInt(args[1], 10, 64)
+	//if err != nil {
+	//	return shim.Error("3rd argument must be a numeric string")
+	//}
+	//Interest_Rate, err := strconv.ParseFloat(args[2], 64)
+	//if err != nil {
+	//	return shim.Error("3rd argument must be a numeric string")
+	//}
+
+	Offer := Offer{}
+	err := json.Unmarshal([]byte(args[0]), &Offer)
 	if err != nil {
-		return shim.Error("3rd argument must be a numeric string")
-	}
-	Interest_Rate, err := strconv.ParseFloat(args[2], 64)
-	if err != nil {
-		return shim.Error("3rd argument must be a numeric string")
+		return shim.Error(err.Error())
 	}
 
-	IDCheck, err := stub.GetState(ID)
+	IDCheck, err := stub.GetState(Offer.ID)
 	if err != nil {
 		return shim.Error("Failed to get Offer: " + err.Error())
 	} else if IDCheck != nil {
 
-		fmt.Println("This Offer already exists.\nID: " + ID + "\n")
-		return shim.Error("This Offer already exists.\nID: " + ID + "\n")
+		fmt.Println("This Offer already exists.\nID: " + Offer.ID + "\n")
+		return shim.Error("This Offer already exists.\nID: " + Offer.ID + "\n")
 	}
-	Offer := &Offer{ID, Loan_Amount, Interest_Rate}
+	//Offer := &Offer{ID, Loan_Amount, Interest_Rate}
 
 	Offer_JSON_Byte, err := json.Marshal(Offer)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	err = stub.PutState(ID, Offer_JSON_Byte)
+	err = stub.PutState(Offer.ID, Offer_JSON_Byte)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
