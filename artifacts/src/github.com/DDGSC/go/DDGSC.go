@@ -23,8 +23,6 @@ import (
 	pb "github.com/hyperledger/fabric/protos/peer"
 )
 
-// todo: 将错误返回的信息改进成json格式的
-
 var logger = shim.NewLogger("DDGSC_cc0")
 
 // 企业
