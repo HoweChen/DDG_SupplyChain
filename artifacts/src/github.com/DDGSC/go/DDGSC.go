@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/hyperledger/fabric/core/chaincode/shim"
@@ -25,10 +26,13 @@ import (
 
 var logger = shim.NewLogger("DDGSC_cc0")
 
+// todo: 每个 struct 可各自加入自己的增改删方法，用 &来初始化对象可调用该structure的方法
+
 // 企业
 type Enterprise struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
 	//the field tags are needed to keep case from bouncing around
+	ObjectType            string   `json:"docType"`             //结构体类型
 	ID                    string   `json:"id"`                  // 企业ID
 	Name                  string   `json:"name"`                // 企业名称
 	Legal_Personality     string   `json:"legalPersonality"`    // 法人代表
@@ -43,6 +47,7 @@ type Enterprise struct {
 // 金融机构 Financial Institution
 type FI struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ObjectType          string   `json:"docType"`            //结构体类型
 	ID                  string   `json:"id"`                 // 金融机构ID
 	Name                string   `json:"name"`               // 金融机构名称
 	Address             string   `json:"address"`            // 金融机构地址
@@ -52,6 +57,7 @@ type FI struct {
 // 项目
 type Project struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ObjectType   string            `json:"docType"`     //结构体类型
 	ID           string            `json:"id"`          // 项目ID
 	Name         string            `json:"name"`        // 项目名称
 	Description  string            `json:"description"` // 项目简介
@@ -61,8 +67,8 @@ type Project struct {
 	Progress     map[string]string `json:"progress"`    // 项目进展 (时间+项目进展描述)
 	Bid_Info     string            `json:"bidInfo"`     // 招标信息
 	Winner_FI    string            `json:"winnerFI"`    // 中标金融机构
-	Credit_Limit float64           `json:"creditLimit"` // 授信额度
-	Used_Limit   float64           `json:"usedLimit"`   // 已用额度
+	Credit_Limit string            `json:"creditLimit"` // 授信额度
+	Used_Limit   string            `json:"usedLimit"`   // 已用额度
 	Capital_Flow map[string]string `json:"capitalFlow"` // 资金流信息 (时间+信息)
 	Cargo_Flow   map[string]string `json:"cargoFlow"`   // 货物流信息 (时间+信息)
 }
@@ -70,6 +76,7 @@ type Project struct {
 // 尽职调查报告 Due	Diligence Report
 type DDR struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ObjectType    string `json:"docType"` //结构体类型
 	ID            string `json:"id"`
 	Balance_Sheet string `json:"balanceSheet"` // 资产负债表_ID
 	Description   string `json:"description"`  // 其他描述
@@ -77,6 +84,7 @@ type DDR struct {
 
 // 资产负债表
 type Balance_Sheet struct {
+	ObjectType         string   `json:"docType"` //结构体类型
 	ID                 string   `json:"id"`
 	LRFS               string   `json:"lrfs"`              // 法人代表家族史 legal representative family history
 	Actual_Controllers []string `json:"actualControllers"` // 实际控制人列表
@@ -85,21 +93,23 @@ type Balance_Sheet struct {
 // 招标信息
 type Bid struct {
 	//ObjectType string `json:"docType"` //docType is used to distinguish the various types of objects in state database
+	ObjectType   string   `json:"docType"` //结构体类型
 	ID           string   `json:"id"`
 	Start_Date   string   `json:"startDate"`   // 发起时间
 	End_Date     string   `json:"end_date"`    // 结束时间
 	Project      string   `json:"project"`     // 所属项目ID
 	Involved_FIs []string `json:"involvedFIs"` // 参与的金融机构列表
 	//Offers       map[FI]Offer `json:"offers"`      // 金融机构报价
-	Offers    map[string]float64 `json:"offers"`   // 金融机构报价
-	Winner_FI string             `json:"winnerFI"` // 中标银行
+	Offers    map[string]string `json:"offers"`   // 金融机构报价
+	Winner_FI string            `json:"winnerFI"` // 中标银行
 }
 
 // 金融机构报价
 type Offer struct {
-	ID            string  `json:"id"`
-	Loan_Amount   int64   `json:"loanAmount"`   // 放款金额
-	Interest_Rate float64 `json:"interestRate"` // 利率
+	ObjectType    string `json:"docType"` //结构体类型
+	ID            string `json:"id"`
+	Loan_Amount   string `json:"loanAmount"`   // 放款金额
+	Interest_Rate string `json:"interestRate"` // 利率
 }
 
 // DDGSCChainCode implementation
@@ -147,19 +157,6 @@ func (t *DDGSCChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	function, args := stub.GetFunctionAndParameters()
 	fmt.Println("invoke is running " + function)
 
-	//if function == "add" {
-	//	return t.add(stub, args)
-	//} else if function == "delete" {
-	//	// Deletes an entity from its state
-	//	//return t.delete(stub, args)
-	//} else if function == "query" {
-	//	// queries an entity state
-	//	return t.query(stub, args)
-	//} else if function == "move" {
-	//	// Deletes an entity from its state
-	//	//return t.move(stub, args)
-	//}
-
 	switch function {
 	case "addEnterprise":
 		return t.addEnterprise(stub, args)
@@ -179,29 +176,10 @@ func (t *DDGSCChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.query(stub, args)
 	case "update":
 		return t.update(stub, args)
-
-		//case "queryEnterprise":
-		//	return t.queryEnterprise(stub, args)
-		//case "queryFI":
-		//	return t.queryFI(stub, args)
-		//case "queryProject":
-		//	return t.queryProject(stub, args)
-		//case "queryDDR":
-		//	return t.queryDDR(stub, args)
-		//case "queryBalanceSheet":
-		//	return t.queryBalanceSheet(stub, args)
-		//case "queryBid":
-		//	return t.queryBid(stub, args)
-		//case "queryOffer":
-		//	return t.queryOffer(stub, args)
 	default:
 		logger.Errorf("Unknown action, check the first argument, got: %v", args[0])
 		return shim.Error(fmt.Sprintf("Unknown action, check the first argument, got: %v", args[0]))
 	}
-
-	//logger.Errorf("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'. But got: %v", args[0])
-	//return shim.Error(fmt.Sprintf("Unknown action, check the first argument, must be one of 'delete', 'query', or 'move'. But got: %v", args[0]))
-
 }
 
 // Add
@@ -232,9 +210,8 @@ func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []
 	//Basic_FI_Account := args[7]
 	//Project_Involvement := []string{}
 
-	Enterprise := Enterprise{
-		Project_Involvement: []string{},
-	}
+	Enterprise := newEnterpriseInst()
+
 	err := json.Unmarshal([]byte(args[0]), &Enterprise)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -250,10 +227,11 @@ func (t *DDGSCChainCode) addEnterprise(stub shim.ChaincodeStubInterface, args []
 	}
 	//Enterprise := &Enterprise{ID, Name, Legal_Personality, Registered_Capbital, Date_of_Establishment, Business_Scope, Basic_FI_Name, Basic_FI_Account, Project_Involvement}
 
-	Enterprise_JSON_Byte, err := json.Marshal(Enterprise)
+	Enterprise_JSON_Byte, err := json.Marshal(*Enterprise)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+	fmt.Println(string(Enterprise_JSON_Byte))
 
 	err = stub.PutState(Enterprise.ID, Enterprise_JSON_Byte)
 	if err != nil {
@@ -282,9 +260,7 @@ func (t *DDGSCChainCode) addFI(stub shim.ChaincodeStubInterface, args []string) 
 	////Project_Involvement := []string{}
 	//Project_Involvement := (args[3])
 
-	FI := FI{
-		Project_Involvement: []string{},
-	}
+	FI := newFIInst()
 	err := json.Unmarshal([]byte(args[0]), &FI)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -308,10 +284,12 @@ func (t *DDGSCChainCode) addFI(stub shim.ChaincodeStubInterface, args []string) 
 	//	return shim.Error(err_jsonfy.Error())
 	//}
 
-	FI_JSON_Byte, err := json.Marshal(FI)
+	FI_JSON_Byte, err := json.Marshal(*FI)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+
+	fmt.Println(string(FI_JSON_Byte))
 
 	err = stub.PutState(FI.ID, FI_JSON_Byte)
 	if err != nil {
@@ -350,18 +328,12 @@ func (t *DDGSCChainCode) addProject(stub shim.ChaincodeStubInterface, args []str
 	//Progress := args[5]
 	//Bid_Info := string("")
 	//Winner_FI := string("")
-	//Credit_Limit := float64(0)
-	//Used_Limit := float64(0)
+	//Credit_Limit := string(0)
+	//Used_Limit := string(0)
 	//Capital_Flow := make(map[string]string)
 	//Cargo_Flow := make(map[string]string)
 
-	Project := Project{
-		Core_Firm:    []string{},
-		Updown_Firm:  []string{},
-		Progress:     make(map[string]string),
-		Capital_Flow: make(map[string]string),
-		Cargo_Flow:   make(map[string]string),
-	}
+	Project := newProjectInst()
 	err := json.Unmarshal([]byte(args[0]), &Project)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -402,10 +374,11 @@ func (t *DDGSCChainCode) addProject(stub shim.ChaincodeStubInterface, args []str
 	//	return shim.Error("Wrong in unmarshalling Progress: " + err.Error())
 	//}
 
-	Project_JSON_Byte, err := json.Marshal(Project)
+	Project_JSON_Byte, err := json.Marshal(*Project)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+	fmt.Println(string(Project_JSON_Byte))
 
 	err = stub.PutState(Project.ID, Project_JSON_Byte)
 	if err != nil {
@@ -431,7 +404,7 @@ func (t *DDGSCChainCode) addDDR(stub shim.ChaincodeStubInterface, args []string)
 	//Balance_Sheet := args[1]
 	//Description := args[2]
 
-	DDR := DDR{}
+	DDR := newDDRInst()
 	err := json.Unmarshal([]byte(args[0]), &DDR)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -447,10 +420,12 @@ func (t *DDGSCChainCode) addDDR(stub shim.ChaincodeStubInterface, args []string)
 	}
 	//DDR := &DDR{ID, Balance_Sheet, Description}
 
-	DDR_JSON_Byte, err := json.Marshal(DDR)
+	DDR_JSON_Byte, err := json.Marshal(*DDR)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+
+	fmt.Println(string(DDR_JSON_Byte))
 
 	err = stub.PutState(DDR.ID, DDR_JSON_Byte)
 	if err != nil {
@@ -477,8 +452,9 @@ func (t *DDGSCChainCode) addBalanceSheet(stub shim.ChaincodeStubInterface, args 
 	//LRFS := args[1]
 	//Actual_Controllers := args[2]
 
-	Balance_Sheet := Balance_Sheet{
-		Actual_Controllers: []string{},
+	Balance_Sheet := newBSInst()
+	{
+
 	}
 	err := json.Unmarshal([]byte(args[0]), &Balance_Sheet)
 	if err != nil {
@@ -503,10 +479,11 @@ func (t *DDGSCChainCode) addBalanceSheet(stub shim.ChaincodeStubInterface, args 
 	//	return shim.Error("Wrong in unmarshalling Balance_Sheet: " + err.Error())
 	//}
 
-	BalanceSheet_JSON_Byte, err := json.Marshal(Balance_Sheet)
+	BalanceSheet_JSON_Byte, err := json.Marshal(*Balance_Sheet)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+	fmt.Println(string(BalanceSheet_JSON_Byte))
 
 	err = stub.PutState(Balance_Sheet.ID, BalanceSheet_JSON_Byte)
 	if err != nil {
@@ -536,13 +513,10 @@ func (t *DDGSCChainCode) addBid(stub shim.ChaincodeStubInterface, args []string)
 	//End_Date := args[2]
 	//Project := args[3]
 	//Involved_FIs := []string{}
-	//Offers := make(map[string]float64)
+	//Offers := make(map[string]string)
 	//Winner_FI := string("")
 
-	Bid := Bid{
-		Involved_FIs: []string{},
-		Offers:       make(map[string]float64),
-	}
+	Bid := newBidInst()
 	err := json.Unmarshal([]byte(args[0]), &Bid)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -558,10 +532,12 @@ func (t *DDGSCChainCode) addBid(stub shim.ChaincodeStubInterface, args []string)
 	}
 	//Bid := &Bid{ID, Start_Date, End_Date, Project, Involved_FIs, Offers, Winner_FI}
 
-	Bid_JSON_Byte, err := json.Marshal(Bid)
+	Bid_JSON_Byte, err := json.Marshal(*Bid)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+
+	fmt.Println(string(Bid_JSON_Byte))
 
 	err = stub.PutState(Bid.ID, Bid_JSON_Byte)
 	if err != nil {
@@ -572,7 +548,6 @@ func (t *DDGSCChainCode) addBid(stub shim.ChaincodeStubInterface, args []string)
 }
 
 func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	return shim.Success(nil)
 	/*
 		新的招标信息 实际控制人列表为空
 		0	ID
@@ -594,7 +569,7 @@ func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []strin
 	//	return shim.Error("3rd argument must be a numeric string")
 	//}
 
-	Offer := Offer{}
+	Offer := newOfferInst()
 	err := json.Unmarshal([]byte(args[0]), &Offer)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -610,10 +585,12 @@ func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []strin
 	}
 	//Offer := &Offer{ID, Loan_Amount, Interest_Rate}
 
-	Offer_JSON_Byte, err := json.Marshal(Offer)
+	Offer_JSON_Byte, err := json.Marshal(*Offer)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
+
+	fmt.Println(string(Offer_JSON_Byte))
 
 	err = stub.PutState(Offer.ID, Offer_JSON_Byte)
 	if err != nil {
@@ -625,6 +602,10 @@ func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []strin
 
 // Query
 func (t *DDGSCChainCode) query(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	/*
+		0	ID
+	*/
 	var ID, jsonResp string
 	var err error
 
@@ -633,7 +614,7 @@ func (t *DDGSCChainCode) query(stub shim.ChaincodeStubInterface, args []string) 
 	}
 
 	ID = args[0]
-	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
+	valAsbytes, err := stub.GetState(ID)
 	if err != nil {
 		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
 		return shim.Error(jsonResp)
@@ -641,11 +622,56 @@ func (t *DDGSCChainCode) query(stub shim.ChaincodeStubInterface, args []string) 
 		jsonResp = "{\"Error\":\"Required data does not exist: " + ID + "\"}"
 		return shim.Error(jsonResp)
 	}
+	//fmt.Println(string(valAsbytes))
 	return shim.Success(valAsbytes)
+}
+
+func (t *DDGSCChainCode) queryByObjectType(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+	/*
+		0	objectType
+	*/
+	if len(args) != 1 {
+		return shim.Error("Incorrect number of arguments. Expecting 1")
+	}
+
+	objectTypeName := args[0]
+	queryString := fmt.Sprintf(`{"selector":{"docType":"%s"}}`, objectTypeName)
+	resultsIterator, err := stub.GetQueryResult(queryString) // 富查询的返回结果可能为多条 所以这里返回的是一个迭代器 需要我们进一步的处理来获取需要的结果
+
+	if err != nil {
+		return shim.Error("Rich query failed")
+	}
+	defer resultsIterator.Close() //释放迭代器
+
+	var buffer bytes.Buffer
+	bArrayMemberAlreadyWritten := false
+	buffer.WriteString(`{"result":[`)
+
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next() //获取迭代器中的每一个值
+		if err != nil {
+			return shim.Error("Fail to get the next item from resultsIterator")
+		}
+		if bArrayMemberAlreadyWritten == true {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString(string(queryResponse.Value)) //将查询结果放入Buffer中
+		bArrayMemberAlreadyWritten = true
+	}
+	buffer.WriteString(`]}`)
+	fmt.Print("Query result: %s", buffer.String())
+
+	return shim.Success(buffer.Bytes())
 }
 
 // Update
 func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+
+	/*
+		0	strctName
+		1 	ID
+		2	stringifyArgument
+	*/
 	var structName, ID, jsonResp string
 	var err error
 
@@ -655,7 +681,10 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 	structName = args[0]
 	ID = args[1]
-	stringifyArgument := args[1]
+	stringifyArgument := args[2]
+
+	// 先检查ID是否存在，如果不存在，则这个更新无意义
+
 	valAsbytes, err := stub.GetState(ID) //get the marble from chaincode state
 	if err != nil {
 		jsonResp = "{\"Error\":\"Failed to get state for " + ID + "\"}"
@@ -665,19 +694,25 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 		return shim.Error(jsonResp)
 	}
 
+	// 不同的structName初始化structure
 	switch structName {
 	case "Enterprise":
-		Enterprise := Enterprise{}
+		Enterprise := newEnterpriseInst()
+
+		// 旧的还原回这个实例
 		err = json.Unmarshal(valAsbytes, &Enterprise)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling Enterprise: " + err.Error())
 		}
+
+		// 更新新的json
 		err = json.Unmarshal([]byte(stringifyArgument), &Enterprise)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to Enterprise: " + err.Error())
 		}
+		fmt.Println(*Enterprise) // 打印测试用
 
-		Enterprise_JSON_Byte, err := json.Marshal(Enterprise)
+		Enterprise_JSON_Byte, err := json.Marshal(*Enterprise)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -689,17 +724,22 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 		return shim.Success(nil)
 	case "FI":
-		FI := FI{}
+		FI := newFIInst()
+
+		// Recover
 		err = json.Unmarshal(valAsbytes, &FI)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling FI: " + err.Error())
 		}
+
+		// Update
 		err = json.Unmarshal([]byte(stringifyArgument), &FI)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to FI: " + err.Error())
 		}
+		fmt.Println(*FI)
 
-		FI_JSON_Byte, err := json.Marshal(FI)
+		FI_JSON_Byte, err := json.Marshal(*FI)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -711,17 +751,21 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 		return shim.Success(nil)
 	case "Project":
-		Project := Project{}
+		Project := newProjectInst()
+		// Recover
 		err = json.Unmarshal(valAsbytes, &Project)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling Project: " + err.Error())
 		}
+
+		// Update
 		err = json.Unmarshal([]byte(stringifyArgument), &Project)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to Project: " + err.Error())
 		}
+		fmt.Println(*Project)
 
-		Project_JSON_Byte, err := json.Marshal(Project)
+		Project_JSON_Byte, err := json.Marshal(*Project)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -733,17 +777,22 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 		return shim.Success(nil)
 	case "DDR":
-		DDR := DDR{}
+		DDR := newDDRInst()
+
+		// Recover
 		err = json.Unmarshal(valAsbytes, &DDR)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling DDR: " + err.Error())
 		}
+
+		// Update
 		err = json.Unmarshal([]byte(stringifyArgument), &DDR)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to DDR: " + err.Error())
 		}
+		fmt.Println(*DDR)
 
-		DDR_JSON_Byte, err := json.Marshal(DDR)
+		DDR_JSON_Byte, err := json.Marshal(*DDR)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -755,17 +804,22 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 		return shim.Success(nil)
 	case "BalanceSheet":
-		Balance_Sheet := Balance_Sheet{}
+		Balance_Sheet := newBSInst()
+
+		// Recover
 		err = json.Unmarshal(valAsbytes, &Balance_Sheet)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling Balance_Sheet: " + err.Error())
 		}
+
+		// Update
 		err = json.Unmarshal([]byte(stringifyArgument), &Balance_Sheet)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to Balance_Sheet: " + err.Error())
 		}
+		fmt.Println(*Balance_Sheet)
 
-		BalanceSheet_JSON_Byte, err := json.Marshal(Balance_Sheet)
+		BalanceSheet_JSON_Byte, err := json.Marshal(*Balance_Sheet)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -777,17 +831,20 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 		return shim.Success(nil)
 	case "Bid":
-		Bid := Bid{}
+		Bid := newBidInst()
+		// Recover
 		err = json.Unmarshal(valAsbytes, &Bid)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling Bid: " + err.Error())
 		}
+		// Update
 		err = json.Unmarshal([]byte(stringifyArgument), &Bid)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to Bid: " + err.Error())
 		}
+		fmt.Println(*Bid)
 
-		Bid_JSON_Byte, err := json.Marshal(Bid)
+		Bid_JSON_Byte, err := json.Marshal(*Bid)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -799,17 +856,21 @@ func (t *DDGSCChainCode) update(stub shim.ChaincodeStubInterface, args []string)
 
 		return shim.Success(nil)
 	case "Offer":
-		Offer := Offer{}
+		Offer := newOfferInst()
+		// Recover
 		err = json.Unmarshal(valAsbytes, &Offer)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling Offer: " + err.Error())
 		}
+
+		// Update
 		err = json.Unmarshal([]byte(stringifyArgument), &Offer)
 		if err != nil {
 			return shim.Error("Wrong in unmarshalling stringifyArgument to Offer: " + err.Error())
 		}
+		fmt.Println(*Offer)
 
-		Offer_JSON_Byte, err := json.Marshal(Offer)
+		Offer_JSON_Byte, err := json.Marshal(*Offer)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -830,5 +891,57 @@ func main() {
 	err := shim.Start(new(DDGSCChainCode))
 	if err != nil {
 		logger.Errorf("Error starting Simple chaincode: %s", err)
+	}
+}
+
+func newEnterpriseInst() *Enterprise {
+	return &Enterprise{
+		ObjectType:          "Enterprise",
+		Project_Involvement: []string{},
+	}
+}
+
+func newFIInst() *FI {
+	return &FI{
+		ObjectType:          "FI",
+		Project_Involvement: []string{},
+	}
+}
+
+func newProjectInst() *Project {
+	return &Project{
+		ObjectType:   "Project",
+		Core_Firm:    []string{},
+		Updown_Firm:  []string{},
+		Progress:     make(map[string]string),
+		Capital_Flow: make(map[string]string),
+		Cargo_Flow:   make(map[string]string),
+	}
+}
+
+func newDDRInst() *DDR {
+	return &DDR{
+		ObjectType: "DDR",
+	}
+}
+
+func newBSInst() *Balance_Sheet {
+	return &Balance_Sheet{
+		ObjectType:         "Balance_Sheet",
+		Actual_Controllers: []string{},
+	}
+}
+
+func newBidInst() *Bid {
+	return &Bid{
+		ObjectType:   "Bid",
+		Involved_FIs: []string{},
+		Offers:       make(map[string]string),
+	}
+}
+
+func newOfferInst() *Offer {
+	return &Offer{
+		ObjectType: "Offer",
 	}
 }
