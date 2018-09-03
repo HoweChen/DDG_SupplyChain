@@ -27,6 +27,8 @@ import (
 var logger = shim.NewLogger("DDGSC_cc0")
 
 // todo: 每个 struct 可各自加入自己的增改删方法，用 &来初始化对象可调用该structure的方法
+// todo: 通过 getStateByRange 可以获取某个range之间的数据(例如说时间段）
+// todo: getHistoryByKey 可以看到某个key的更改历史
 
 // 企业
 type Enterprise struct {
@@ -108,6 +110,8 @@ type Bid struct {
 type Offer struct {
 	ObjectType    string `json:"docType"` //结构体类型
 	ID            string `json:"id"`
+	FID           string `json:"fid"`          // 金融机构ID
+	PID           string `json:"pid"`          // 项目ID
 	Loan_Amount   string `json:"loanAmount"`   // 放款金额
 	Interest_Rate string `json:"interestRate"` // 利率
 }
@@ -117,36 +121,7 @@ type DDGSCChainCode struct {
 }
 
 func (t *DDGSCChainCode) Init(stub shim.ChaincodeStubInterface) pb.Response {
-	//logger.Info("########### example_cc0 Init ###########")
-	//
-	//_, args := stub.GetFunctionAndParameters()
-	//var A, B string    // Entities
-	//var Aval, Bval int // Asset holdings
-	//var err error
-	//
-	//// Initialize the chaincode
-	//A = args[0]
-	//Aval, err = strconv.Atoi(args[1])
-	//if err != nil {
-	//	return shim.Error("Expecting integer value for asset holding")
-	//}
-	//B = args[2]
-	//Bval, err = strconv.Atoi(args[3])
-	//if err != nil {
-	//	return shim.Error("Expecting integer value for asset holding")
-	//}
-	//logger.Info("Aval = %d, Bval = %d\n", Aval, Bval)
-	//
-	//// Write the state to the ledger
-	//err = stub.PutState(A, []byte(strconv.Itoa(Aval)))
-	//if err != nil {
-	//	return shim.Error(err.Error())
-	//}
-	//
-	//err = stub.PutState(B, []byte(strconv.Itoa(Bval)))
-	//if err != nil {
-	//	return shim.Error(err.Error())
-	//}
+	// 直接正确返回
 	return shim.Success(nil)
 }
 
@@ -174,6 +149,8 @@ func (t *DDGSCChainCode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 		return t.addOffer(stub, args)
 	case "query":
 		return t.query(stub, args)
+	case "queryByObjectType":
+		return t.queryByObjectType(stub, args)
 	case "update":
 		return t.update(stub, args)
 	default:
@@ -552,7 +529,9 @@ func (t *DDGSCChainCode) addOffer(stub shim.ChaincodeStubInterface, args []strin
 		新的招标信息 实际控制人列表为空
 		0	ID
 		1	Loan_Amount
-		2	Interest_Rate
+		2	FID
+		3	PID
+		4	Interest_Rate
 	*/
 
 	if len(args) != 1 {
@@ -635,33 +614,17 @@ func (t *DDGSCChainCode) queryByObjectType(stub shim.ChaincodeStubInterface, arg
 	}
 
 	objectTypeName := args[0]
-	queryString := fmt.Sprintf(`{"selector":{"docType":"%s"}}`, objectTypeName)
-	resultsIterator, err := stub.GetQueryResult(queryString) // 富查询的返回结果可能为多条 所以这里返回的是一个迭代器 需要我们进一步的处理来获取需要的结果
+	fmt.Println(objectTypeName)
+	queryString := fmt.Sprintf("{\"selector\":{\"docType\":\"%s\"}}", objectTypeName)
 
+	fmt.Println(queryString)
+
+	queryResults, err := getResultForQueryString(stub, queryString)
 	if err != nil {
-		return shim.Error("Rich query failed")
+		return shim.Error(err.Error())
 	}
-	defer resultsIterator.Close() //释放迭代器
+	return shim.Success(queryResults)
 
-	var buffer bytes.Buffer
-	bArrayMemberAlreadyWritten := false
-	buffer.WriteString(`{"result":[`)
-
-	for resultsIterator.HasNext() {
-		queryResponse, err := resultsIterator.Next() //获取迭代器中的每一个值
-		if err != nil {
-			return shim.Error("Fail to get the next item from resultsIterator")
-		}
-		if bArrayMemberAlreadyWritten == true {
-			buffer.WriteString(",")
-		}
-		buffer.WriteString(string(queryResponse.Value)) //将查询结果放入Buffer中
-		bArrayMemberAlreadyWritten = true
-	}
-	buffer.WriteString(`]}`)
-	fmt.Print("Query result: %s", buffer.String())
-
-	return shim.Success(buffer.Bytes())
 }
 
 // Update
@@ -944,4 +907,46 @@ func newOfferInst() *Offer {
 	return &Offer{
 		ObjectType: "Offer",
 	}
+}
+
+func getResultForQueryString(stub shim.ChaincodeStubInterface, queryString string) ([]byte, error) {
+
+	fmt.Printf("- getResultForQueryString queryString:\n%s\n", queryString)
+
+	resultsIterator, err := stub.GetQueryResult(queryString)
+	if err != nil {
+		return nil, err
+	}
+	defer resultsIterator.Close()
+
+	// buffer is a JSON array containing QueryRecords
+	var buffer bytes.Buffer
+	buffer.WriteString("[")
+
+	bArrayMemberAlreadyWritten := false
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+		// Add a comma before array members, suppress it for the first array member
+		if bArrayMemberAlreadyWritten == true {
+			buffer.WriteString(",")
+		}
+		buffer.WriteString("{\"Key\":")
+		buffer.WriteString("\"")
+		buffer.WriteString(queryResponse.Key)
+		buffer.WriteString("\"")
+
+		buffer.WriteString(", \"Record\":")
+		// Record is a JSON object, so we write as-is
+		buffer.WriteString(string(queryResponse.Value))
+		buffer.WriteString("}")
+		bArrayMemberAlreadyWritten = true
+	}
+	buffer.WriteString("]")
+
+	fmt.Printf("- getResultForQueryString Result:\n%s\n", buffer.String())
+
+	return buffer.Bytes(), nil
 }
